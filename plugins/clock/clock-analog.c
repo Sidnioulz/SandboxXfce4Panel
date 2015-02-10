@@ -52,6 +52,11 @@ static void      xfce_clock_analog_draw_ticks    (cairo_t              *cr,
                                                   gdouble               xc,
                                                   gdouble               yc,
                                                   gdouble               radius);
+static void      xfce_clock_analog_draw_one_tick (cairo_t              *cr,
+                                                  gdouble               xc,
+                                                  gdouble               yc,
+                                                  gdouble               radius,
+                                                  gdouble               angle);
 static void      xfce_clock_analog_draw_pointer  (cairo_t              *cr,
                                                   gdouble               xc,
                                                   gdouble               yc,
@@ -252,12 +257,13 @@ xfce_clock_analog_expose_event (GtkWidget      *widget,
         {
           /* second pointer */
           angle = TICKS_TO_RADIANS (g_date_time_get_second (time));
-          xfce_clock_analog_draw_pointer (cr, xc, yc, radius, angle, 0.7, TRUE);
+          xfce_clock_analog_draw_one_tick (cr, xc, yc, 0.75 * radius, angle);
+          cairo_fill (cr);
         }
 
       /* minute pointer */
       angle = TICKS_TO_RADIANS (g_date_time_get_minute (time));
-      xfce_clock_analog_draw_pointer (cr, xc, yc, radius, angle, 0.8, FALSE);
+      xfce_clock_analog_draw_pointer (cr, xc, yc, radius, angle, 0.8, TRUE);
 
       /* hour pointer */
       angle = HOURS_TO_RADIANS (g_date_time_get_hour (time), g_date_time_get_minute (time));
@@ -280,23 +286,35 @@ xfce_clock_analog_draw_ticks (cairo_t *cr,
                               gdouble  radius)
 {
   gint    i;
-  gdouble x, y, angle;
+  gdouble angle;
 
   for (i = 0; i < 12; i++)
     {
       /* calculate */
       angle = HOURS_TO_RADIANS (i, 0);
-      x = xc + sin (angle) * (radius * (1.0 - CLOCK_SCALE));
-      y = yc + cos (angle) * (radius * (1.0 - CLOCK_SCALE));
-
-      /* draw arc */
-      cairo_move_to (cr, x, y);
-      cairo_arc (cr, x, y, radius * CLOCK_SCALE, 0, 2 * G_PI);
-      cairo_close_path (cr);
+      xfce_clock_analog_draw_one_tick (cr, xc, yc, radius, angle);
     }
 
   /* fill the arcs */
   cairo_fill (cr);
+}
+
+static void
+xfce_clock_analog_draw_one_tick (cairo_t *cr,
+                                 gdouble  xc,
+                                 gdouble  yc,
+                                 gdouble  radius,
+                                 gdouble  angle)
+{
+   gdouble x, y;
+
+   x = xc + sin (angle) * (radius * (1.0 - CLOCK_SCALE));
+   y = yc + cos (angle) * (radius * (1.0 - CLOCK_SCALE));
+
+   /* draw arc */
+   cairo_move_to (cr, x, y);
+   cairo_arc (cr, x, y, radius * CLOCK_SCALE, 0, 2 * G_PI);
+   cairo_close_path (cr);
 }
 
 
