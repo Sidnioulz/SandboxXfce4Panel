@@ -23,6 +23,7 @@
 #include <gtk/gtk.h>
 #include <exo/exo.h>
 #include <libxfce4panel/libxfce4panel.h>
+#include <libxfce4ui/libxfce4ui.h>
 #include <common/panel-private.h>
 
 #include "pager-buttons.h"
@@ -270,6 +271,64 @@ pager_buttons_button_press_event (GtkWidget      *button,
 
 
 
+static void
+pager_button_add_security_decorations(GtkWidget      *button,
+                                      GtkWidget      *label,
+                                      gint            ws_num)
+{
+  GtkWidget     *icon;
+  GtkWidget     *hbox;
+#if GTK_CHECK_VERSION (3, 0, 0)
+  GdkRGBA col, colprelight;
+#else
+  GdkColor col, colprelight;
+#endif
+
+  if (xfce_workspace_is_secure(ws_num))
+    {
+      icon = gtk_image_new_from_icon_name ("firejail-protect-symbolic", 12);
+      //icon = xfce_panel_image_new_from_source("firejail-protect");
+      //xfce_panel_image_set_size(XFCE_PANEL_IMAGE(icon), 16);
+      gtk_widget_show (icon);
+
+      hbox = gtk_hbox_new (FALSE, 2);
+      gtk_box_pack_start (GTK_BOX (hbox), icon, FALSE, FALSE, 0);
+      gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 0);
+      gtk_container_add (GTK_CONTAINER (button), hbox);
+      gtk_widget_show (hbox);
+
+#if GTK_CHECK_VERSION (3, 0, 0)
+      GdkRGBA col, colprelight;
+      col.red = 0.47265625;
+      col.green = 0.09375;
+      col.blue = 0.09375;
+      colprelight.red = 0.639;
+      colprelight.green = 0.16;
+      colprelight.blue = 0.12;
+      col.alpha = colprelight.alpha = 1.0;
+
+      gtk_widget_override_background_color(button, GTK_STATE_FLAG_NORMAL, col);
+      gtk_widget_override_background_color(button, GTK_STATE_FLAG_INSENSITIVE, col);
+      gtk_widget_override_background_color(button, GTK_STATE_FLAG_ACTIVE, col);
+      gtk_widget_override_background_color(button, GTK_STATE_FLAG_PRELIGHT, colprelight);
+#else
+      gdk_color_parse("#791818", &col);
+      gdk_color_parse("#d64937", &colprelight);
+
+      gtk_widget_modify_bg(button, GTK_STATE_NORMAL, &col);
+      gtk_widget_modify_bg(button, GTK_STATE_INSENSITIVE, &col);
+      gtk_widget_modify_bg(button, GTK_STATE_ACTIVE, &col);
+      gtk_widget_modify_bg(button, GTK_STATE_PRELIGHT, &colprelight);
+#endif
+    }
+  else
+    {
+      gtk_container_add (GTK_CONTAINER (button), label);
+    }
+}
+
+
+
 static gboolean
 pager_buttons_rebuild_idle (gpointer user_data)
 {
@@ -280,9 +339,9 @@ pager_buttons_rebuild_idle (gpointer user_data)
   gint           rows, cols;
   gint           row, col;
   GtkWidget     *button;
+  GtkWidget     *label;
   WnckWorkspace *workspace = NULL;
   GtkWidget     *panel_plugin;
-  GtkWidget     *label;
   gint           workspace_width, workspace_height = 0;
   gint           screen_width = 0, screen_height = 0;
   gint           viewport_x, viewport_y;
@@ -383,6 +442,15 @@ pager_buttons_rebuild_idle (gpointer user_data)
           xfce_panel_plugin_add_action_widget (XFCE_PANEL_PLUGIN (panel_plugin), button);
           gtk_widget_show (button);
 
+          g_snprintf (text, sizeof (text), "%d", n + 1);
+          label = gtk_label_new (text);
+          gtk_label_set_angle (GTK_LABEL (label),
+              pager->orientation == GTK_ORIENTATION_HORIZONTAL ? 0 : 270);
+          gtk_container_add (GTK_CONTAINER (button), label);
+          gtk_widget_show (label);
+
+          pager_button_add_security_decorations(button, label, n);
+
           g_object_set_data_full (G_OBJECT (button), "viewport-info", vp_info,
                                   (GDestroyNotify) g_free);
 
@@ -427,14 +495,15 @@ pager_buttons_rebuild_idle (gpointer user_data)
           xfce_panel_plugin_add_action_widget (XFCE_PANEL_PLUGIN (panel_plugin), button);
           gtk_widget_show (button);
 
-          label = gtk_label_new (NULL);
+         label = gtk_label_new (NULL);
           g_signal_connect_object (G_OBJECT (workspace), "name-changed",
               G_CALLBACK (pager_buttons_workspace_button_label), label, 0);
           pager_buttons_workspace_button_label (workspace, label);
           gtk_label_set_angle (GTK_LABEL (label),
               pager->orientation == GTK_ORIENTATION_HORIZONTAL ? 0 : 270);
-          gtk_container_add (GTK_CONTAINER (button), label);
           gtk_widget_show (label);
+
+          pager_button_add_security_decorations(button, label, n);
 
           pager->buttons = g_slist_prepend (pager->buttons, button);
 
